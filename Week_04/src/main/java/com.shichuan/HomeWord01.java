@@ -4,6 +4,8 @@ import org.junit.jupiter.api.Test;
 
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * project_name: JAVA-001
@@ -107,34 +109,92 @@ public class HomeWord01 {
 		});
 		//保证线程池的方法已被调用
 		Thread.sleep(100L);
-		semaphore.acquire(1);
+		try {
+			semaphore.acquire(1);
+		} finally {
+			semaphore.release(1);
+		}
+		System.out.println(proxyResult.getResult());
+		executorService.shutdown();
+	}
+
+//	/**
+//	 * cyclicBarrier
+//	 *
+//	 * @throws Exception
+//	 */
+//	@Test
+//	public void cyclicBarrierDemo1() throws Exception {
+//		ExecutorService executorService = initExecutorService();
+//		ProxyResult proxyResult = new ProxyResult();
+//		CyclicBarrier cyclicBarrier = new CyclicBarrier(1);
+//		executorService.execute(() -> {
+//			try {
+//				String result = targetMethod();
+//				proxyResult.setResult(result);
+//			} finally {
+//				try {
+//					cyclicBarrier.await();
+//				} catch (Exception e) {
+//					e.printStackTrace();
+//				}
+//			}
+//		});
+//		cyclicBarrier.await();
+//		System.out.println(proxyResult.getResult());
+//		executorService.shutdown();
+//	}
+
+	/**
+	 * wait notify
+	 *
+	 * @throws Exception
+	 */
+	@Test
+	public void waitDemo1() throws Exception {
+		ExecutorService executorService = initExecutorService();
+		ProxyResult proxyResult = new ProxyResult();
+		executorService.execute(() -> {
+			String result = targetMethod();
+			proxyResult.setResult(result);
+			synchronized (proxyResult) {
+				proxyResult.notify();
+			}
+		});
+		synchronized (proxyResult) {
+			proxyResult.wait();
+		}
 		System.out.println(proxyResult.getResult());
 		executorService.shutdown();
 	}
 
 	/**
-	 * cyclicBarrier
+	 * lock
 	 *
 	 * @throws Exception
 	 */
 	@Test
-	public void cyclicBarrierDemo1() throws Exception {
+	public void lockDemo1() throws Exception {
 		ExecutorService executorService = initExecutorService();
 		ProxyResult proxyResult = new ProxyResult();
-		CyclicBarrier cyclicBarrier = new CyclicBarrier(1);
+		Lock lock = new ReentrantLock(true);
 		executorService.execute(() -> {
 			try {
+				lock.lock();
 				String result = targetMethod();
 				proxyResult.setResult(result);
-
-			} catch (Exception e) {
-				e.printStackTrace();
+			} finally {
+				lock.unlock();
 			}
 		});
-		cyclicBarrier.await();
-
+		//让线程逻辑先执行
+		Thread.sleep(100L);
+		try {
+			lock.lock();
+		} finally {
+			lock.unlock();
+		}
 		System.out.println(proxyResult.getResult());
-		cyclicBarrier.reset();
 		executorService.shutdown();
 	}
 
